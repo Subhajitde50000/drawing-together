@@ -1,469 +1,559 @@
-# Collaborative Drawing Game — System Design Document
+# Collaborative Drawing Game — System Design (Updated)
 
 ---
 
-# 1. Introduction
+# 1. System Overview
 
-This document describes the **system design** for a lightweight two-player collaborative drawing web application.
+This system is a **real-time multiplayer drawing game platform** that supports two gameplay modes:
 
-The system allows two users to:
+1. **Collaborative Drawing Mode**
+2. **Guess The Drawing Mode**
 
-* Create or join a drawing room
-* Draw together on a shared canvas
-* See drawing updates in real time
-* Download the final drawing
+Players interact through a **shared room** using a browser.
+Communication between clients and the server happens through **WebSockets**.
 
-The design intentionally avoids:
+The system uses:
 
-* User authentication
-* Databases
-* Persistent storage
+* **Next.js frontend**
+* **FastAPI backend**
+* **In-memory room storage**
+* **No database**
+* **No authentication**
 
-All room data exists **temporarily in server memory**.
-
----
-
-# 2. System Goals
-
-### Primary Goals
-
-* Enable **real-time collaborative drawing**
-* Allow **two players per room**
-* Provide **instant room creation**
-* Allow users to **download the final drawing**
-
-### Secondary Goals
-
-* Minimal system complexity
-* Fast connection setup
-* Lightweight backend
+Rooms and game sessions exist **only while the server is running**.
 
 ---
 
-# 3. High-Level Architecture
+# 2. High-Level Architecture
 
-The system follows a **client-server architecture**.
+System components:
 
-Components:
-
-* Frontend application
-* WebSocket server
-* In-memory room manager
-
-```id="zkwdso"
-              ┌───────────────────────────┐
-              │         Client            │
-              │       (Next.js App)       │
-              │   Canvas + WebSocket      │
-              └─────────────┬─────────────┘
-                            │
-                            │ WebSocket
-                            │
-                            ▼
-              ┌───────────────────────────┐
-              │       FastAPI Server      │
-              │     WebSocket Endpoint    │
-              │       Room Manager        │
-              └─────────────┬─────────────┘
-                            │
-                            │
-                     In-Memory Storage
-                     (Python Dictionary)
+```
+Browser (Next.js)
+     │
+     │ WebSocket
+     │
+     ▼
+FastAPI Server
+     │
+     │
+Room Manager (Memory)
+     │
+     │
+Game Engine (Guess Mode)
 ```
 
----
-
-# 4. System Components
-
-## 4.1 Frontend (Next.js)
-
 Responsibilities:
 
-* Render drawing interface
-* Handle user input
-* Send drawing events
-* Render incoming drawing updates
-* Manage WebSocket connection
-* Enable canvas download
+**Frontend**
 
-Core technologies:
+* Canvas rendering
+* Drawing input
+* Guess input
+* Timer display
+* Scoreboard UI
 
-* Next.js
-* React
-* HTML5 Canvas API
-* WebSocket client
+**Backend**
 
----
-
-## 4.2 Backend (FastAPI)
-
-Responsibilities:
-
-* Handle WebSocket connections
-* Manage rooms
-* Broadcast drawing events
-* Handle player disconnections
-
-The backend acts primarily as a **real-time message relay**.
+* Room lifecycle
+* WebSocket connection management
+* Game logic
+* Event broadcasting
 
 ---
 
-## 4.3 Room Manager
+# 3. Core Components
 
-The room manager controls:
+The backend system is divided into several logical modules.
 
-* active rooms
-* connected players
-* room capacity
-* player removal
+### Room Manager
 
-Rooms are stored using an **in-memory dictionary**.
+Responsible for:
 
-Example:
+* Creating rooms
+* Storing room state
+* Tracking players
+* Managing WebSocket connections
 
-```id="pf3gfo"
+Data stored in memory:
+
+```
 rooms = {
-  "room_id": [player1_socket, player2_socket]
+   room_id: RoomObject
 }
 ```
 
 ---
 
-# 5. Data Flow
+### Game Engine
 
-## 5.1 Room Creation
+Handles **Guess Mode game logic**.
 
-Room creation occurs on the frontend.
+Responsibilities:
 
-Steps:
+* Round management
+* Word generation
+* Timer management
+* Guess validation
+* Score updates
+* Round summaries
 
-```id="xsm23x"
-User clicks Create Room
-        ↓
-Frontend generates random room ID
-        ↓
-User navigates to /room/{room_id}
-        ↓
-WebSocket connection established
-        ↓
-Server registers room
+---
+
+### WebSocket Gateway
+
+Handles all **real-time communication**.
+
+Responsibilities:
+
+* Player connection
+* Message routing
+* Broadcasting events
+* Disconnect handling
+
+---
+
+# 4. Room Structure
+
+Each room stores game state and player information.
+
+Example structure:
+
+```
+Room {
+    room_id
+    mode
+    owner
+    players[]
+    sockets[]
+    game_state
+}
 ```
 
 ---
 
-## 5.2 Room Joining
+### Player Object
 
-Second player joins using the same room link.
-
-Flow:
-
-```id="0v42yd"
-User opens shared link
-        ↓
-Frontend connects to WebSocket
-        ↓
-Server checks room capacity
-        ↓
-Connection accepted if < 2 players
 ```
-
-If room capacity is full:
-
-```id="ra6qyb"
-Server rejects connection
+Player {
+    id
+    name
+    socket
+    score
+    has_guessed
+}
 ```
 
 ---
 
-# 6. WebSocket Design
+### Game State (Guess Mode)
 
-WebSockets provide **low-latency communication** between players.
+```
+GameState {
+    round
+    max_rounds
+    current_drawer
+    word
+    masked_word
+    timer
+    guessed_players[]
+}
+```
 
-### Endpoint
+---
 
-```id="22hhyf"
+# 5. Game Modes
+
+## Collaborative Drawing Mode
+
+Purpose:
+Players draw together on a shared canvas.
+
+Constraints:
+
+```
+Max players = 2
+```
+
+System behavior:
+
+* Drawing events broadcast to all players
+* No scoring
+* No rounds
+* Canvas download supported
+
+---
+
+## Guess The Drawing Mode
+
+Purpose:
+Players guess a word based on a drawing.
+
+Constraints:
+
+```
+Max players = 6
+Min players = 2
+```
+
+Game flow includes:
+
+* Rounds
+* Drawer rotation
+* Word guessing
+* Timer
+* Scoreboard
+
+---
+
+# 6. WebSocket Communication
+
+Clients connect using:
+
+```
 /ws/{room_id}
 ```
 
 Example:
 
-```id="ysyz4d"
-ws://server/ws/abc123
+```
+ws://server/ws/ab12cd
+```
+
+All gameplay communication happens through WebSocket messages.
+
+---
+
+# 7. Event System
+
+The system uses an **event-based message architecture**.
+
+Example message format:
+
+```
+{
+  "type": "event_type",
+  "data": {}
+}
 ```
 
 ---
 
-# 7. Message Format
+### Common Events
 
-All communication uses JSON messages.
-
-Example drawing event:
-
-```id="3n9ml7"
-{
-  "type": "draw",
-  "x": 120,
-  "y": 340,
-  "color": "#000000",
-  "size": 5
-}
-```
-
-Fields:
-
-| Field | Description     |
-| ----- | --------------- |
-| type  | event type      |
-| x     | x coordinate    |
-| y     | y coordinate    |
-| color | brush color     |
-| size  | brush thickness |
+| Event             | Purpose                |
+| ----------------- | ---------------------- |
+| player_join       | new player enters room |
+| player_leave      | player disconnects     |
+| draw              | drawing event          |
+| guess             | player guess message   |
+| round_start       | start of round         |
+| timer_update      | countdown update       |
+| round_end         | round finished         |
+| scoreboard_update | scores updated         |
 
 ---
 
 # 8. Drawing Synchronization
 
-The server does not process drawing logic.
+Drawing uses the HTML5 canvas.
 
-Instead it **forwards messages**.
+When a player draws:
 
-Event flow:
+```
+Client → Server → Broadcast to room
+```
 
-```id="p80u2g"
-Player 1 draws
-        ↓
-Frontend sends draw event
-        ↓
-FastAPI receives message
-        ↓
-Server broadcasts message
-        ↓
-Player 2 receives event
-        ↓
-Canvas updated
+Example drawing message:
+
+```
+{
+ "type": "draw",
+ "x": 230,
+ "y": 420,
+ "color": "#000",
+ "size": 5
+}
+```
+
+Server simply **broadcasts the event**.
+
+---
+
+# 9. Guess Processing
+
+Players submit guesses through chat.
+
+Example message:
+
+```
+{
+ "type": "guess",
+ "text": "tree"
+}
+```
+
+Server process:
+
+```
+receive guess
+      ↓
+compare with secret word
+      ↓
+correct?
+      ↓
+update score
+      ↓
+broadcast result
 ```
 
 ---
 
-# 9. Canvas Rendering
+# 10. Word System
 
-Rendering happens entirely on the client.
-
-Responsibilities:
-
-* handle mouse movement
-* draw strokes locally
-* apply remote drawing updates
-
-Canvas API handles:
-
-* line drawing
-* brush color
-* stroke thickness
-
----
-
-# 10. Download System
-
-The drawing can be exported using the browser canvas API.
-
-Process:
-
-```id="v3hyl0"
-User clicks Download
-        ↓
-Canvas converted to image
-        ↓
-PNG file generated
-        ↓
-Browser downloads file
-```
-
-Implementation method:
-
-```id="kncgt6"
-canvas.toDataURL("image/png")
-```
-
----
-
-# 11. Room Capacity Control
-
-Rooms allow **maximum two players**.
-
-Server validation:
-
-```id="4v8yk3"
-if len(room_players) >= 2:
-    reject_connection
-```
-
-This ensures the room remains a **two-player session**.
-
----
-
-# 12. Disconnect Handling
-
-WebSocket connections can close due to:
-
-* browser closing
-* refresh
-* network loss
-
-Server handling:
-
-```id="vo2r7u"
-detect disconnect
-remove socket from room
-cleanup empty room
-```
+Words are selected from a predefined word list.
 
 Example:
 
-```id="ryj94r"
-if room empty:
-    delete room
+```
+tree
+car
+dragon
+pizza
+banana
+guitar
+castle
+robot
+```
+
+Only the **drawer sees the full word**.
+
+Other players see:
+
+```
+T _ _ _
+```
+
+This helps guide guesses.
+
+---
+
+# 11. Round Lifecycle
+
+Each round follows this lifecycle.
+
+```
+Select drawer
+      ↓
+Generate word
+      ↓
+Send masked word to players
+      ↓
+Start timer
+      ↓
+Drawer draws
+      ↓
+Players guess
+      ↓
+Correct guesses tracked
+      ↓
+Timer ends or all guessed
+      ↓
+Round summary
+      ↓
+Next round
 ```
 
 ---
 
-# 13. Scalability
+# 12. Timer System
 
-This architecture supports multiple rooms simultaneously.
+Each round includes a countdown timer.
 
-Each room contains:
-
-* up to 2 WebSocket connections
-* minimal server memory usage
-
-Scalability limits depend on:
-
-* server memory
-* WebSocket connection limits
-
-Since rooms are temporary, resource usage remains low.
-
----
-
-# 14. Performance Considerations
-
-### Low Latency
-
-WebSockets provide near real-time updates.
-
-Target latency:
+Default duration:
 
 ```
-< 200 ms
+70 seconds
 ```
 
-### Lightweight Messages
+Server responsibilities:
 
-Drawing events only send coordinates and brush data.
+* Start timer
+* Broadcast countdown
+* End round when timer reaches zero
 
-This keeps network traffic minimal.
+Example timer event:
 
----
-
-# 15. Security Considerations
-
-Because there is no authentication:
-
-Potential risks include:
-
-* room spam
-* malicious messages
-* random connection attempts
-
-Mitigations:
-
-* limit room size
-* validate message format
-* restrict payload size
-
-Future improvements may include:
-
-* rate limiting
-* room expiration
-
----
-
-# 16. Failure Scenarios
-
-### Server Restart
-
-Impact:
-
-* all rooms disappear
-* players disconnected
-
-Reason:
-
-Rooms stored only in memory.
-
----
-
-### Network Disconnection
-
-Impact:
-
-* player removed from room
-* other player remains
-
-Possible mitigation:
-
-* reconnection logic on client
-
----
-
-# 17. Deployment Architecture
-
-Typical deployment setup:
-
-```id="9cxci6"
-Internet
-   │
-   ▼
-Frontend (Next.js)
-   │
-   │ WebSocket
-   ▼
-Backend (FastAPI Server)
+```
+{
+ "type": "timer_update",
+ "remaining": 34
+}
 ```
 
-Frontend hosting options:
+---
 
-* static hosting
-* edge hosting
+# 13. Score System
 
-Backend hosting options:
+Players receive points when guessing correctly.
 
-* cloud VM
-* container service
+Default scoring:
+
+```
+Correct guess = +10 points
+```
+
+Optional logic:
+
+Drawer may receive points if players guess correctly.
+
+Scoreboard example:
+
+```
+Player1   30
+Player2   20
+Player3   10
+Player4    0
+```
+
+Scores are stored in **room memory**.
 
 ---
 
-# 18. Future System Improvements
+# 14. Round Summary
 
-Possible enhancements:
+At the end of each round the server broadcasts:
 
-* Redis for distributed room storage
-* horizontal scaling
-* drawing history replay
-* room persistence
-* multiplayer rooms (more than two players)
+* Correct word
+* Players who guessed correctly
+* Updated scores
 
-These features would require a **more complex backend architecture**.
+Example:
+
+```
+Round Over
+
+Word: TREE
+
+Scores:
+Alice 30
+Bob   20
+Eve   10
+```
+
+After a short delay the next round begins.
 
 ---
 
-# 19. Summary
+# 15. Player Disconnect Handling
 
-This system is designed to be:
+Possible scenarios:
 
-* simple
-* lightweight
-* real-time
-* easy to deploy
+* Browser closed
+* Network lost
+* Page refresh
 
-By avoiding authentication and databases, the architecture focuses purely on **real-time collaborative drawing between two users** while keeping development and infrastructure complexity minimal.
+Server must:
+
+```
+Remove player from room
+Broadcast updated player list
+```
+
+If drawer disconnects:
+
+```
+Select new drawer
+Continue round
+```
+
+If the room becomes empty:
+
+```
+Delete room
+```
+
+---
+
+# 16. Room Lifecycle
+
+Room lifecycle:
+
+```
+Room created
+      ↓
+Players join
+      ↓
+Game starts
+      ↓
+Rounds played
+      ↓
+Players leave
+      ↓
+Room deleted
+```
+
+Since there is **no database**, rooms disappear when:
+
+```
+Server restarts
+```
+
+---
+
+# 17. Scalability Considerations
+
+Current MVP limitations:
+
+* Single server instance
+* In-memory state
+* No horizontal scaling
+
+Future scaling options:
+
+* Redis room storage
+* WebSocket gateway layer
+* Distributed game servers
+
+These are **not required for MVP**.
+
+---
+
+# 18. Security Considerations
+
+Basic protections:
+
+* Room player limits
+* Input validation
+* Guess message filtering
+* Rate limiting guesses (optional)
+
+Since there are **no accounts**, abuse risk is minimal for MVP.
+
+---
+
+# 19. Failure Handling
+
+Possible failures:
+
+| Issue                | Handling          |
+| -------------------- | ----------------- |
+| WebSocket disconnect | Remove player     |
+| Server restart       | All rooms reset   |
+| Drawer leaves        | Assign new drawer |
+| Timer failure        | Restart round     |
+
+---
+
+# 20. System Summary
+
+The system focuses on **simplicity and real-time gameplay**.
+
+Key principles:
+
+* WebSocket-driven architecture
+* In-memory room management
+* Event-based communication
+* Minimal backend complexity
+
+This design enables a **fast, lightweight multiplayer drawing game MVP** with both collaborative and competitive gameplay modes.

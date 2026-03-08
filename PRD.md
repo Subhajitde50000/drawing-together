@@ -1,369 +1,470 @@
-# Collaborative Drawing Game — Product Requirements Document (PRD)
+# Collaborative Drawing Game — Product Requirements Document (PRD) (Updated)
 
 ---
 
 # 1. Product Overview
 
-The product is a **lightweight two-player collaborative drawing web game** where users can create a room, invite a friend, and draw together on a shared canvas in real time.
+The product is a **real-time multiplayer drawing web application** that allows players to create rooms, invite friends, and interact through drawing-based activities.
 
-The primary goal is to create **fun and entertaining moments** between two players by allowing them to draw together and save their final artwork.
+The application includes **two core game modes**:
 
-The product intentionally keeps the experience **simple and frictionless**:
+1. **Collaborative Drawing Mode** – two players draw together on the same canvas.
+2. **Guess The Drawing Mode** – a multiplayer drawing and guessing game for up to six players.
 
-* No login required
-* No account creation
-* No database storage
-* Instant room creation via shareable link
+The product focuses on **instant play and minimal friction**, meaning users can start playing immediately without accounts or setup.
 
-The entire experience should work within a few seconds of opening the website.
+Key constraints:
+
+* No login system
+* No database
+* Temporary rooms stored in server memory
+* Real-time communication using WebSockets
 
 ---
 
 # 2. Product Vision
 
-Create a **fast, playful, and zero-friction drawing experience** where two people can instantly start drawing together and share a funny moment.
+Create a **fast, social drawing experience** where people can instantly start playing with friends.
 
-Key principles:
+The product should feel:
 
-* Instant access
-* Minimal interface
-* Real-time interaction
-* Easy sharing
-* Lightweight architecture
+* simple
+* responsive
+* playful
+* easy to share
+
+The core idea is **quick multiplayer fun with zero friction**.
 
 ---
 
 # 3. Target Users
 
-### Primary Users
+## Primary Users
 
-Friends who want to quickly draw something together.
+Friends who want a quick casual multiplayer activity.
 
 Examples:
 
-* Friends sharing funny sketches
-* Couples doodling together
-* Casual creative play
+* friends sharing a funny drawing game
+* classmates playing during breaks
+* small online groups
 
-### Secondary Users
+## Secondary Users
 
-People who want a quick **shared whiteboard** for simple drawing or brainstorming.
+Users who want a **simple shared whiteboard** to draw together.
 
 ---
 
-# 4. User Problem
+# 4. User Problems
 
-Current drawing tools usually require:
+Most collaborative drawing tools require:
 
 * account creation
-* complex UI
-* installation
-* collaboration setup
+* complicated interfaces
+* setup steps
+* invitations
 
-This creates friction for users who simply want to **quickly draw something together**.
+This creates friction for users who simply want to **quickly play or draw together**.
 
 Users need:
 
 * instant room creation
-* simple interface
-* real-time collaboration
-* easy download of drawing
+* simple UI
+* real-time interaction
+* easy sharing
 
 ---
 
 # 5. Product Goals
 
-### Primary Goal
+## Primary Goal
 
-Enable **two users to draw together on the same canvas in real time**.
+Allow players to **instantly join a shared drawing room and interact in real time**.
 
-### Secondary Goals
+## Secondary Goals
 
-* Keep the experience extremely simple
-* Ensure fast connection between players
-* Allow downloading the final drawing
-
----
-
-# 6. Success Metrics
-
-Key metrics for evaluating success:
-
-### Functional Metrics
-
-* Two users can successfully join the same room
-* Drawing updates sync in real time
-* Canvas download works
-
-### User Experience Metrics
-
-* Room creation time < 2 seconds
-* Second player can join in < 5 seconds
-* Drawing latency < 200ms
+* provide an engaging drawing game
+* support small multiplayer groups
+* keep the system simple and lightweight
 
 ---
 
-# 7. User Stories
+# 6. Game Modes
 
-### Room Creation
+## Mode 1 — Collaborative Drawing
 
-**As a user**,
-I want to create a drawing room quickly,
-so that I can invite a friend to draw together.
+Players: **2**
 
----
+Purpose:
+Two players draw together on the same canvas.
 
-### Room Joining
+Features:
 
-**As a user**,
-I want to join a shared drawing room via a link,
-so that I can draw with another player.
+* shared canvas
+* real-time drawing sync
+* download final drawing
 
----
+Example flow:
 
-### Real-Time Drawing
-
-**As a user**,
-I want to see the other player's drawing instantly,
-so that we can collaborate naturally.
-
----
-
-### Download Drawing
-
-**As a user**,
-I want to download the final drawing as an image,
-so that I can keep or share it.
+```id="m1l0z3"
+Player creates room
+      ↓
+Second player joins
+      ↓
+Both draw together
+      ↓
+Download drawing
+```
 
 ---
 
-# 8. Core Features
+## Mode 2 — Guess The Drawing
 
-## 1. Room Creation
+Players: **2–6**
+
+Purpose:
+A drawing-based guessing game.
+
+One player draws a secret word while the others try to guess it.
+
+Correct guesses earn points.
+
+Example flow:
+
+```id="i6snye"
+Round starts
+     ↓
+One player becomes drawer
+     ↓
+Secret word shown to drawer
+     ↓
+Timer starts
+     ↓
+Drawer draws the object
+     ↓
+Other players guess
+     ↓
+Correct guesses earn points
+     ↓
+Round ends
+```
+
+---
+
+# 7. Core Features
+
+## Room Creation
 
 Users can create a room instantly.
 
-System generates:
-
-* unique room ID
-* shareable room link
+System generates a unique room link.
 
 Example:
 
-```
+```id="mpx4gj"
 /room/ab39df
 ```
 
----
-
-## 2. Room Joining
-
-Another user opens the room link and joins the session.
-
-Room capacity:
-
-* Maximum **2 players**
-
-If the room is full, additional users are rejected.
+Users can share the link with friends.
 
 ---
 
-## 3. Shared Drawing Canvas
+## Room Joining
 
-Both players interact with the same drawing board.
+Players join rooms by opening the shared link.
+
+Rules:
+
+* collaborative mode: max **2 players**
+* guess mode: max **6 players**
+
+If a room is full, users see an error page.
+
+---
+
+## Shared Drawing Canvas
+
+Players interact with a shared drawing board.
 
 Capabilities:
 
 * draw lines
-* see each other's strokes in real time
-* smooth drawing experience
+* see drawings in real time
+* basic drawing tools
 
 ---
 
-## 4. Download Drawing
+## Guess Input System
 
-Users can export the canvas as an image file.
+In Guess Mode, players submit guesses using a text input.
 
-Supported format:
+Example:
 
-* PNG
+```id="1v8n4q"
+guess: tree
+```
 
-This allows users to save or share their drawing.
+Server checks if the guess matches the secret word.
+
+---
+
+## Timer System
+
+Each Guess Mode round includes a timer.
+
+Default value:
+
+```id="g9y4zk"
+70 seconds
+```
+
+When the timer ends, the round automatically finishes.
+
+---
+
+## Scoreboard
+
+The game tracks player scores.
+
+Example:
+
+```id="x48lti"
+Player1 - 20
+Player2 - 10
+Player3 - 5
+Player4 - 0
+```
+
+Scores update when players guess correctly.
+
+---
+
+## Round Summary
+
+After each round, players see:
+
+* the correct word
+* players who guessed correctly
+* updated scores
+
+Example:
+
+```id="aw0r6n"
+Word: TREE
+
+Scores
+Player1 20
+Player2 10
+Player3 0
+```
+
+Then the next round begins.
+
+---
+
+# 8. User Stories
+
+### Create Room
+
+As a user,
+I want to create a room quickly,
+so that I can invite friends to play.
+
+---
+
+### Join Room
+
+As a user,
+I want to join a room using a link,
+so that I can start playing instantly.
+
+---
+
+### Draw Objects
+
+As a player,
+I want to draw objects on the canvas,
+so that others can guess the word.
+
+---
+
+### Guess Word
+
+As a player,
+I want to type guesses while watching the drawing,
+so that I can earn points.
+
+---
+
+### See Scoreboard
+
+As a player,
+I want to see the current scores after each round,
+so that I know who is winning.
 
 ---
 
 # 9. User Flow
 
-### Flow 1 — Create Room
+## Collaborative Mode
 
-```
+```id="vau2sa"
 User opens website
       ↓
-Clicks "Create Room"
+Creates room
       ↓
-Room ID generated
+Shares link
       ↓
-Room link shown
+Second player joins
       ↓
-User shares link
+Both draw together
 ```
 
 ---
 
-### Flow 2 — Join Room
+## Guess Mode
 
-```
-Second user opens link
+```id="rjckd1"
+User creates room
       ↓
-User enters room
+Friends join (max 6)
       ↓
-WebSocket connection established
+Owner starts game
       ↓
-Both players see shared canvas
-```
-
----
-
-### Flow 3 — Drawing Session
-
-```
-Player draws
+Round begins
       ↓
-Coordinates sent to server
+Drawer draws word
       ↓
-Server broadcasts event
+Players guess
       ↓
-Other player sees drawing
-```
-
----
-
-### Flow 4 — Download Drawing
-
-```
-User clicks Download
+Scores updated
       ↓
-Canvas converted to image
-      ↓
-File downloaded
+Next round
 ```
 
 ---
 
 # 10. Functional Requirements
 
-### Room System
+### Room Management
 
-* Users must be able to create a room
-* Users must be able to join a room via link
-* Room must allow **only two players**
-
----
-
-### Real-Time Drawing
-
-* Drawing updates must be visible to both players
-* Drawing latency should be minimal
-* Canvas state should update smoothly
+* users must be able to create rooms
+* users must be able to join rooms via link
+* rooms must limit player count
 
 ---
 
-### Canvas Export
+### Drawing System
 
-* Users must be able to download the drawing
-* Downloaded image must match canvas content
+* drawing must synchronize in real time
+* strokes must appear smoothly
+* canvas must support basic drawing tools
+
+---
+
+### Guess System
+
+* players must be able to submit guesses
+* system must detect correct guesses
+* system must update scores
+
+---
+
+### Game Rounds
+
+* system must rotate drawing players
+* rounds must end when timer finishes
+* round summary must appear before next round
 
 ---
 
 # 11. Non-Functional Requirements
 
-### Performance
+## Performance
 
-* Real-time drawing latency under **200ms**
+Drawing latency target:
 
-### Reliability
+```
+< 200 ms
+```
 
-* WebSocket connections must reconnect gracefully
-
-### Scalability
-
-* System should support multiple rooms simultaneously
+Timer synchronization should remain consistent across players.
 
 ---
 
-# 12. Constraints
+## Reliability
 
-The product intentionally avoids:
+System must handle:
 
-* login system
-* user accounts
-* database storage
-
-This means:
-
-* rooms are temporary
-* drawings are not stored
-* server restart removes active rooms
+* player disconnects
+* page refresh
+* temporary connection loss
 
 ---
 
-# 13. Risks
+## Scalability
 
-### Connection Stability
+The system should support multiple rooms simultaneously.
 
-WebSocket disconnections could interrupt drawing sessions.
+Each room operates independently.
+
+---
+
+# 12. Risks
+
+## Connection Issues
+
+WebSocket connections may drop.
 
 Mitigation:
 
-* reconnect logic
+* reconnection logic
 * connection status indicators
 
 ---
 
-### Room ID Collisions
+## Cheating
 
-Random IDs might theoretically collide.
+Players may try to reveal the word.
 
-Mitigation:
+Possible mitigation:
 
-* sufficiently random room IDs
-
----
-
-### Abuse
-
-Without authentication, rooms could be spammed.
-
-Mitigation (future):
-
-* rate limiting
-* room expiration
+* prevent drawer from typing guesses
+* discourage drawing letters
 
 ---
 
-# 14. Future Features (Post-MVP)
+## Server Restart
+
+Since rooms are stored in memory:
+
+* all games reset if the server restarts
+
+---
+
+# 13. Future Features (Post-MVP)
 
 Possible improvements:
 
-* drawing prompts
-* timer challenges
-* guess-the-drawing mode
-* brush colors
-* brush sizes
-* undo button
-* spectator mode
+* word categories
+* difficulty levels
 * drawing replay
-* mobile touch optimization
+* spectator mode
+* persistent accounts
+* saved drawings
+* global leaderboards
+* mobile optimization
 
 ---
 
-# 15. Release Criteria
+# 14. Release Criteria
 
-The MVP is ready for release when:
+The MVP is ready when:
 
-1. Room creation works
-2. Two players can join a room
-3. Drawing sync works in real time
-4. Canvas download works
-5. Basic UI is functional
-6. System runs without login or database
+* players can create rooms
+* players can join rooms
+* drawing works in real time
+* Guess Mode gameplay works
+* timer and rounds function correctly
+* scoreboard updates correctly
+* rooms work without login or database

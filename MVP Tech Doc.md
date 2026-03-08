@@ -1,21 +1,24 @@
-# Collaborative Drawing Game — MVP Technical Document
+# Collaborative Drawing Game — MVP Technical Document (Updated)
 
-## 1. MVP Goal
+---
 
-The goal of the MVP (Minimum Viable Product) is to build a **simple two-player collaborative drawing game** where:
+# 1. MVP Goal
 
-* One player creates a room
-* Another player joins the room
-* Both players draw on the same canvas in real time
-* The final drawing can be downloaded
+The goal of this MVP is to build a **real-time multiplayer drawing web application** that supports two simple modes:
 
-The MVP intentionally **avoids complex systems** such as:
+1. **Collaborative Drawing Mode** (2 players draw together)
+2. **Guess The Drawing Mode** (2–6 players guessing game)
 
-* User authentication
-* Databases
-* Persistent storage
+The application allows players to create rooms, invite others via a shared link, and interact in real time.
 
-Rooms exist **only in server memory** and disappear when the server restarts.
+Core constraints:
+
+* No login system
+* No database
+* Rooms exist **only in server memory**
+* Real-time communication using **WebSockets**
+
+If the server restarts, all rooms and game sessions disappear.
 
 ---
 
@@ -23,28 +26,47 @@ Rooms exist **only in server memory** and disappear when the server restarts.
 
 ## Included Features
 
-1. Room creation
-2. Room joining via link
-3. Maximum two players per room
-4. Real-time drawing synchronization
-5. Canvas download as image
-6. Basic drawing tools
+### Core Platform
 
-## Excluded Features (Not MVP)
+* Room creation
+* Room joining via link
+* WebSocket real-time communication
+* In-memory room storage
 
-These features are intentionally excluded to keep development fast:
+### Collaborative Drawing Mode
 
-* Login system
-* User profiles
-* Chat system
-* Drawing history storage
-* Spectator mode
-* Game scoring
-* Prompt generator
+* 2 players per room
+* Shared drawing canvas
+* Real-time drawing synchronization
+* Download drawing as image
+
+### Guess The Drawing Mode
+
+* 2–6 players per room
+* Round-based gameplay
+* Secret word drawing
+* Guess input system
+* Timer per round (default 70 seconds)
+* Scoreboard system
+* Round summary
 
 ---
 
-# 3. Tech Stack
+# 3. Excluded Features (Not MVP)
+
+To keep the MVP achievable, the following are excluded:
+
+* User accounts
+* Persistent game history
+* Chat moderation
+* Spectator mode
+* Voice chat
+* Word category selection
+* Replay system
+
+---
+
+# 4. Tech Stack
 
 ## Frontend
 
@@ -52,18 +74,20 @@ Framework:
 
 * Next.js
 
-Libraries:
+Libraries / APIs:
 
 * React
 * HTML5 Canvas API
+* WebSocket client
 
-Responsibilities:
+Frontend Responsibilities:
 
-* Drawing UI
-* Capturing user input
-* WebSocket communication
-* Rendering remote drawing updates
-* Downloading canvas image
+* Render drawing canvas
+* Handle drawing input
+* Render guesses and chat
+* Display timer
+* Display scoreboard
+* Manage WebSocket connection
 
 ---
 
@@ -77,18 +101,21 @@ Language:
 
 * Python
 
-Responsibilities:
+Backend Responsibilities:
 
-* WebSocket connections
-* Room management
-* Broadcasting drawing events
-* Connection handling
+* Manage WebSocket connections
+* Manage room state
+* Broadcast drawing events
+* Handle guessing logic
+* Manage round lifecycle
+* Maintain scoreboard
+* Manage timer events
 
 ---
 
-# 4. Architecture Overview
+# 5. Architecture Overview
 
-```
+```id="3st63m"
 Browser (Next.js)
    │
    │ WebSocket
@@ -100,334 +127,343 @@ FastAPI Server
 In-Memory Room Storage
 ```
 
-All drawing synchronization happens through **WebSocket communication**.
+The server acts as both:
+
+* a **real-time message router**
+* a **game state manager** for Guess Mode.
 
 ---
 
-# 5. Room System
+# 6. Room System
 
-## Room Creation
+Rooms are created dynamically.
 
-When a user clicks **Create Room**, the frontend generates a random room ID.
+Room ID example:
 
-Example:
-
-```
-/room/x8a92b
+```id="fxn0qb"
+/room/ab32cd
 ```
 
-The room is considered active once the first WebSocket connection is established.
+Each room stores:
 
----
+* room ID
+* game mode
+* player list
+* WebSocket connections
+* game state (for Guess Mode)
 
-## Room Joining
+Example structure:
 
-Player 2 opens the same room URL and connects to the same WebSocket endpoint.
-
-Example WebSocket URL:
-
-```
-ws://server/ws/x8a92b
-```
-
-If the room already contains **two players**, the server rejects the connection.
-
----
-
-# 6. In-Memory Data Structure
-
-Rooms are stored in a Python dictionary.
-
-Example:
-
-```
+```id="df6vym"
 rooms = {
-  "x8a92b": [player1_socket, player2_socket]
+ "ab32cd": {
+   "mode": "guess",
+   "players": [],
+   "sockets": [],
+   "game_state": {}
+ }
 }
 ```
 
-Responsibilities:
+---
 
-* Track player connections
-* Limit room size
-* Broadcast events
-* Remove disconnected sockets
+# 7. Player Limits
+
+Different modes support different player counts.
+
+Collaborative Mode:
+
+```id="hhju4o"
+Max players = 2
+```
+
+Guess Mode:
+
+```id="0s5vd1"
+Max players = 6
+```
+
+Server rejects additional players if the room limit is reached.
 
 ---
 
-# 7. WebSocket Communication
+# 8. WebSocket Endpoint
 
-WebSockets enable **real-time drawing synchronization**.
+Clients connect to:
 
-## Connection
-
-Client connects to:
-
-```
+```id="aah65p"
 /ws/{room_id}
 ```
 
 Example:
 
+```id="0g4q0y"
+ws://server/ws/ab32cd
 ```
-ws://server/ws/x8a92b
-```
+
+WebSocket is used for all real-time communication.
 
 ---
 
-## Message Format
+# 9. Message Format
 
-All messages are JSON.
+All messages use JSON.
 
-Example drawing event:
+Example:
 
-```
+```id="l25js3"
 {
-  "type": "draw",
-  "x": 150,
-  "y": 220,
-  "color": "#000000",
-  "size": 4
+ "type": "event_type",
+ "data": {}
 }
 ```
 
 ---
 
-## Event Flow
+# 10. Drawing Event
 
+Used in both modes.
+
+Example:
+
+```id="9rjdrb"
+{
+ "type": "draw",
+ "x": 120,
+ "y": 340,
+ "color": "#000000",
+ "size": 4
+}
 ```
-Player draws
-      ↓
-Frontend sends coordinates
-      ↓
-FastAPI WebSocket receives data
-      ↓
-Server broadcasts message
-      ↓
-Other player receives event
-      ↓
-Canvas updates
-```
+
+The server broadcasts drawing events to all players in the room.
 
 ---
 
-# 8. Canvas Drawing
+# 11. Guess Event
 
-The frontend uses the **HTML5 Canvas API**.
+Players submit guesses via a chat input.
 
-Responsibilities:
+Example message:
 
-* Track mouse movement
-* Draw strokes locally
-* Send coordinates to server
-* Render remote strokes
+```id="2t4l9z"
+{
+ "type": "guess",
+ "player": "player2",
+ "text": "tree"
+}
+```
 
-Events captured:
-
-* mouse down
-* mouse move
-* mouse up
-
-These determine when drawing starts and stops.
+Server checks if the guess matches the secret word.
 
 ---
 
-# 9. Download Drawing Feature
+# 12. Guess Mode Game State
 
-Users can download the final canvas as a PNG file.
+For Guess Mode, the server maintains a game state object.
 
-Implementation uses:
+Example:
 
+```id="izun6q"
+game_state = {
+ "round": 1,
+ "current_drawer": "player3",
+ "word": "tree",
+ "timer": 70,
+ "scores": {},
+ "guessed_players": []
+}
 ```
-canvas.toDataURL("image/png")
-```
 
-Download flow:
-
-```
-User clicks Download
-        ↓
-Canvas converted to image
-        ↓
-Browser downloads file
-```
+This state is updated during gameplay.
 
 ---
 
-# 10. Player Limits
+# 13. Round System
 
-Each room supports **maximum 2 players**.
-
-Server logic:
-
-```
-if len(room_players) >= 2:
-    reject_connection
-```
-
-This prevents additional users from joining.
-
----
-
-# 11. Disconnect Handling
-
-The backend must handle WebSocket disconnections.
-
-Possible causes:
-
-* browser closed
-* page refresh
-* internet connection lost
-
-Server responsibilities:
-
-1. Remove socket from room
-2. Delete empty rooms
-3. Allow new players to join
-
-Example cleanup logic:
-
-```
-if room has 0 players:
-    delete room
-```
-
----
-
-# 12. Error Handling
-
-Basic error handling should include:
-
-Room full
-
-```
-Room already contains two players
-```
-
-Invalid room
-
-```
-Room does not exist
-```
-
-Connection failure
-
-```
-WebSocket connection lost
-```
-
-Frontend should show simple messages to users.
-
----
-
-# 13. Folder Structure
-
-Example project layout:
-
-```
-project
-
-frontend/
-  nextjs-app
-    pages/
-    components/
-      CanvasBoard
-      RoomControls
-
-backend/
-  main.py
-  websocket_routes.py
-  room_manager.py
-```
-
----
-
-# 14. Development Workflow
-
-### Step 1
-
-Build basic **canvas drawing locally** in Next.js.
-
-### Step 2
-
-Implement **WebSocket connection** to FastAPI.
-
-### Step 3
-
-Send drawing events to server.
-
-### Step 4
-
-Broadcast events to other player.
-
-### Step 5
-
-Render incoming strokes on canvas.
-
-### Step 6
-
-Add room creation and joining.
-
-### Step 7
-
-Add canvas download feature.
-
----
-
-# 15. Deployment Plan
-
-Frontend:
-
-Deploy Next.js application.
-
-Backend:
-
-Deploy FastAPI server with WebSocket support.
-
-Required configuration:
-
-* Public backend URL
-* WebSocket endpoint
-* CORS configuration
+Each game contains multiple rounds.
 
 Example flow:
 
-```
-User opens site
-      ↓
-Creates room
-      ↓
-Shares link
-      ↓
-Second player joins
-      ↓
-Both draw together
-      ↓
-Download drawing
+```id="r2hwlt"
+Round starts
+     ↓
+Select drawing player
+     ↓
+Secret word generated
+     ↓
+Timer starts
+     ↓
+Drawer draws
+     ↓
+Players submit guesses
+     ↓
+Round ends
+     ↓
+Scoreboard update
+     ↓
+Next round begins
 ```
 
 ---
 
-# 16. MVP Limitations
+# 14. Word System
 
-Because the MVP prioritizes simplicity:
+Words are selected from a predefined list.
 
-* Rooms are temporary
-* Drawings are not saved
-* Server restart removes all rooms
-* No player identity
-* No moderation
+Example:
 
-These trade-offs reduce development complexity.
+```id="0fnt7a"
+tree
+car
+pizza
+guitar
+dragon
+robot
+banana
+```
+
+The drawer sees the full word.
+
+Other players see a hint:
+
+```id="c5jsht"
+T _ _ _
+```
 
 ---
 
-# 17. Success Criteria
+# 15. Timer System
 
-The MVP is successful if:
+Each round has a timer.
 
-1. Two players can join the same room
-2. Both see drawing updates in real time
-3. Drawing feels responsive
-4. The final image can be downloaded
-5. The system works without authentication or databases
+Default:
+
+```id="lmp1ju"
+70 seconds
+```
+
+Timer responsibilities:
+
+* Start when round begins
+* Broadcast updates every second
+* End round when timer reaches zero
+
+Example timer event:
+
+```id="65uee5"
+{
+ "type": "timer_update",
+ "remaining": 42
+}
+```
+
+---
+
+# 16. Score System
+
+Points are awarded for correct guesses.
+
+Example scoring:
+
+```id="zpsl9t"
+Correct guess = +10 points
+```
+
+Optional:
+
+Drawer receives points if players guess correctly.
+
+Scores are stored in room memory.
+
+Example:
+
+```id="lfk3v3"
+scores = {
+ "player1": 20,
+ "player2": 10,
+ "player3": 0
+}
+```
+
+---
+
+# 17. Round Summary
+
+After each round, the system shows:
+
+* the correct word
+* players who guessed correctly
+* updated scoreboard
+
+Example:
+
+```id="43ggrh"
+Word: TREE
+
+Scores
+Player1  20
+Player2  10
+Player3   0
+```
+
+After a short delay, the next round begins.
+
+---
+
+# 18. Disconnect Handling
+
+Possible cases:
+
+* player closes browser
+* internet disconnect
+* page refresh
+
+Server must:
+
+1. Remove player from room
+2. Update player list
+3. Continue game if possible
+
+If the drawer disconnects:
+
+```id="c70tn3"
+Select new drawer
+```
+
+If the room becomes empty:
+
+```id="k7wbb2"
+Delete room
+```
+
+---
+
+# 19. Development Workflow
+
+Suggested development order:
+
+1. Build canvas drawing locally
+2. Implement WebSocket drawing sync
+3. Implement room system
+4. Add collaborative mode
+5. Add player lobby
+6. Implement guess chat system
+7. Implement round logic
+8. Implement timer
+9. Implement scoreboard
+
+---
+
+# 20. MVP Success Criteria
+
+The MVP is considered complete when:
+
+* Rooms can be created
+* Players can join via link
+* Drawing synchronizes in real time
+* Guess Mode rounds work correctly
+* Timer works correctly
+* Scoreboard updates correctly
+* Players can download drawings
+* System runs without login or database
