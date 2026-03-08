@@ -17,10 +17,15 @@ ALLOWED_ORIGINS: list[str] = [
 
 app = FastAPI(title="Drawing Together — WebSocket Server")
 
+# allow_credentials=True is incompatible with allow_origins=["*"] per the CORS
+# spec — browsers reject the combination. Only enable credentials when a
+# specific origin list is provided.
+_allow_credentials = "*" not in ALLOWED_ORIGINS
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
-    allow_credentials=True,
+    allow_credentials=_allow_credentials,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -33,6 +38,7 @@ manager = RoomManager()
 # ---------------------------------------------------------------------------
 
 @app.get("/")
+@app.head("/")
 def health_check():
     return {"status": "ok", "message": "Drawing Together backend is running"}
 
@@ -55,13 +61,13 @@ def room_info(room_id: str):
 
 @app.websocket("/ws/{room_id}")
 async def websocket_endpoint(websocket: WebSocket, room_id: str):
-    # optional origin check using the same list used by CORS
-    origin = websocket.headers.get("origin")
-    if origin and ALLOWED_ORIGINS and origin not in ALLOWED_ORIGINS:
-        # log for debugging
-        print(f"WebSocket connection rejected, origin {origin} not in allowed list {ALLOWED_ORIGINS}")
-        await websocket.close(code=1008)
-        return
+    # Origin check — skip if wildcard "*" is in the allowed list
+    if "*" not in ALLOWED_ORIGINS:
+        origin = websocket.headers.get("origin")
+        if origin and origin not in ALLOWED_ORIGINS:
+            print(f"WebSocket rejected: origin '{origin}' not in {ALLOWED_ORIGINS}")
+            await websocket.close(code=1008)
+            return
 
     # Reject if room is full before accepting the connection
     if manager.is_full(room_id):

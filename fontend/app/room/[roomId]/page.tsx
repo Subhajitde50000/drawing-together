@@ -420,25 +420,105 @@ function applyGlitter(
 
 type WsStatus = "connecting" | "connected" | "disconnected" | "full";
 
+const WS_MAX_RETRIES = 12;
+const WS_BASE_DELAY_MS = 3000;
+// How long to poll the HTTP health endpoint before giving up (ms)
+const WAKE_TIMEOUT_MS = 90_000;
+const WAKE_POLL_MS = 5_000;
+
+/**
+ * Poll GET /  until it returns HTTP 200 (server is awake) or the signal is
+ * aborted. Returns true if the server is ready, false on timeout/abort.
+ * Uses a plain fetch with credentials omitted so CORS works with allow_origins=*.
+ */
+async function waitForBackend(httpUrl: string, signal: AbortSignal): Promise<boolean> {
+    const deadline = Date.now() + WAKE_TIMEOUT_MS;
+    while (Date.now() < deadline) {
+        if (signal.aborted) return false;
+        try {
+            const res = await fetch(`${httpUrl}/`, {
+                method: "GET",
+                cache: "no-store",
+                credentials: "omit",    // compatible with allow_origins=*
+                signal,
+            });
+            if (res.ok) return true;    // 200 — server is alive
+            // 404/5xx from Render's proxy means server not yet up — keep polling
+        } catch { /* network error / server still cold-starting */ }
+        await new Promise<void>((resolve) => {
+            const t = setTimeout(resolve, WAKE_POLL_MS);
+            signal.addEventListener("abort", () => { clearTimeout(t); resolve(); }, { once: true });
+        });
+    }
+    return false;
+}
+
 function useWebSocket(roomId: string, onMessage: (data: DrawEvent) => void) {
     const wsRef = useRef<WebSocket | null>(null);
     const [wsStatus, setWsStatus] = useState<WsStatus>("disconnected");
+    const retryCount = useRef(0);
+    const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const onMessageRef = useRef(onMessage);
+    onMessageRef.current = onMessage;
 
     useEffect(() => {
-        const backendUrl = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8000";
-        const ws = new WebSocket(`${backendUrl}/ws/${roomId}`);
-        wsRef.current = ws;
-        setWsStatus("connecting");
-        ws.onopen = () => setWsStatus("connected");
-        ws.onclose = (e) => {
-            // Code 4000 means the room is already full
-            setWsStatus(e.code === 4000 ? "full" : "disconnected");
+        const abortCtrl = new AbortController();
+        retryCount.current = 0;
+
+        // Derive HTTP base URL from the WS env var (ws→http, wss→https)
+        const wsBase = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8000";
+        const httpBase = process.env.NEXT_PUBLIC_API_URL ||
+            wsBase.replace(/^wss:/, "https:").replace(/^ws:/, "http:");
+
+        async function connectWithWake() {
+            if (abortCtrl.signal.aborted) return;
+            setWsStatus("connecting");
+            const alive = await waitForBackend(httpBase, abortCtrl.signal);
+            if (!alive || abortCtrl.signal.aborted) {
+                setWsStatus("disconnected");
+                return;
+            }
+            openSocket();
+        }
+
+        function openSocket() {
+            if (abortCtrl.signal.aborted) return;
+            const ws = new WebSocket(`${wsBase}/ws/${roomId}`);
+            wsRef.current = ws;
+            setWsStatus("connecting");
+
+            ws.onopen = () => {
+                retryCount.current = 0;
+                setWsStatus("connected");
+            };
+
+            ws.onclose = (e) => {
+                if (e.code === 4000) { setWsStatus("full"); return; }
+                if (abortCtrl.signal.aborted) return;
+                if (retryCount.current < WS_MAX_RETRIES) {
+                    retryCount.current += 1;
+                    setWsStatus("disconnected");
+                    // Re-check server health before each retry (handles server restart)
+                    retryTimer.current = setTimeout(connectWithWake, WS_BASE_DELAY_MS);
+                } else {
+                    setWsStatus("disconnected");
+                }
+            };
+
+            ws.onerror = () => { /* onclose fires after onerror */ };
+            ws.onmessage = (event) => {
+                try { onMessageRef.current(JSON.parse(event.data)); } catch { /* ignore */ }
+            };
+        }
+
+        // Initial connect: wake the dyno first, then open the WebSocket
+        connectWithWake();
+
+        return () => {
+            abortCtrl.abort();
+            if (retryTimer.current) clearTimeout(retryTimer.current);
+            wsRef.current?.close();
         };
-        ws.onerror = () => setWsStatus("disconnected");
-        ws.onmessage = (event) => {
-            try { onMessage(JSON.parse(event.data)); } catch { /* ignore */ }
-        };
-        return () => ws.close();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [roomId]);
 
@@ -536,6 +616,7 @@ export default function RoomPage() {
     const roomId = params?.roomId ?? "unknown";
 
     const canvasRef = useRef<HTMLCanvasElement>(null);
+    const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
     const canvasWrapperRef = useRef<HTMLDivElement>(null);
     const isDrawingRef = useRef(false);
     const lastPosRef = useRef<{ x: number; y: number } | null>(null);
@@ -577,7 +658,7 @@ export default function RoomPage() {
     function saveHistory() {
         const canvas = canvasRef.current;
         if (!canvas) return;
-        const ctx = canvas.getContext("2d");
+        const ctx = ctxRef.current;
         if (!ctx) return;
         const snap = ctx.getImageData(0, 0, canvas.width, canvas.height);
         // Truncate any redo future
@@ -594,7 +675,7 @@ export default function RoomPage() {
         historyIndexRef.current -= 1;
         const canvas = canvasRef.current;
         if (!canvas) return;
-        const ctx = canvas.getContext("2d");
+        const ctx = ctxRef.current;
         if (!ctx) return;
         ctx.putImageData(historyRef.current[historyIndexRef.current], 0, 0);
         setCanUndo(historyIndexRef.current > 0);
@@ -606,7 +687,7 @@ export default function RoomPage() {
         historyIndexRef.current += 1;
         const canvas = canvasRef.current;
         if (!canvas) return;
-        const ctx = canvas.getContext("2d");
+        const ctx = ctxRef.current;
         if (!ctx) return;
         ctx.putImageData(historyRef.current[historyIndexRef.current], 0, 0);
         setCanUndo(true);
@@ -616,8 +697,10 @@ export default function RoomPage() {
     useEffect(() => {
         const canvas = canvasRef.current;
         if (!canvas) return;
-        const ctx = canvas.getContext("2d");
+        // Create context once with willReadFrequently so getImageData is fast
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
         if (!ctx) return;
+        ctxRef.current = ctx;
         fillWhite(ctx, canvas);
         // Save blank canvas as step 0 so undo always has a base
         const snap = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -657,7 +740,7 @@ export default function RoomPage() {
         // ── Canvas drawing events ──
         const canvas = canvasRef.current;
         if (!canvas) return;
-        const ctx = canvas.getContext("2d");
+        const ctx = ctxRef.current;
         if (!ctx) return;
 
         if (data.type === "draw" && data.fromX !== undefined) {
@@ -723,7 +806,7 @@ export default function RoomPage() {
         if (!isDrawingRef.current) return;
         const canvas = canvasRef.current;
         if (!canvas) return;
-        const ctx = canvas.getContext("2d");
+        const ctx = ctxRef.current;
         if (!ctx) return;
 
         const pos = getCanvasCoords(e, canvas);
@@ -771,7 +854,7 @@ export default function RoomPage() {
     function handleCanvasClick(e: React.MouseEvent) {
         const canvas = canvasRef.current;
         if (!canvas) return;
-        const ctx = canvas.getContext("2d");
+        const ctx = ctxRef.current;
         if (!ctx) return;
         const pos = getCanvasCoords(e, canvas);
 
@@ -795,7 +878,7 @@ export default function RoomPage() {
     function clearCanvas() {
         const canvas = canvasRef.current;
         if (!canvas) return;
-        const ctx = canvas.getContext("2d");
+        const ctx = ctxRef.current;
         if (!ctx) return;
         saveHistory();
         fillWhite(ctx, canvas);
