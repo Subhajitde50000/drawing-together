@@ -1,14 +1,25 @@
 import json
+import os
+
+from dotenv import load_dotenv
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
 from room_manager import RoomManager
 
+load_dotenv()
+
+ALLOWED_ORIGINS: list[str] = [
+    origin.strip()
+    for origin in os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(",")
+    if origin.strip()
+]
+
 app = FastAPI(title="Drawing Together — WebSocket Server")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],   # Restrict to your frontend domain in production
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -35,7 +46,7 @@ def room_info(room_id: str):
     if not manager.room_exists(room_id):
         return {"room_id": room_id, "players": 0, "full": False}
     count = manager.player_count(room_id)
-    return {"room_id": room_id, "players": count, "full": count >= 2}
+    return {"room_id": room_id, "players": count, "full": manager.is_full(room_id)}
 
 
 # ---------------------------------------------------------------------------
@@ -44,6 +55,14 @@ def room_info(room_id: str):
 
 @app.websocket("/ws/{room_id}")
 async def websocket_endpoint(websocket: WebSocket, room_id: str):
+    # optional origin check using the same list used by CORS
+    origin = websocket.headers.get("origin")
+    if origin and ALLOWED_ORIGINS and origin not in ALLOWED_ORIGINS:
+        # log for debugging
+        print(f"WebSocket connection rejected, origin {origin} not in allowed list {ALLOWED_ORIGINS}")
+        await websocket.close(code=1008)
+        return
+
     # Reject if room is full before accepting the connection
     if manager.is_full(room_id):
         await websocket.close(code=4000)
@@ -189,3 +208,17 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
                 json.dumps({"type": "player_left", "players": remaining}),
                 sender=websocket,
             )
+
+
+# ---------------------------------------------------------------------------
+# Server startup (when run directly)
+# ---------------------------------------------------------------------------
+
+if __name__ == "__main__":
+    # The hosting platform (Render, Heroku, etc.) typically sets PORT and maybe HOST
+    host = os.getenv("HOST", "0.0.0.0")
+    port = int(os.getenv("PORT", os.getenv("UVICORN_PORT", "8000")))
+    # uvicorn may not be imported until runtime to avoid affecting FastAPI imports
+    import uvicorn
+
+    uvicorn.run("main:app", host=host, port=port)
