@@ -25,7 +25,7 @@ html {
 body {
   background-color: var(--color-bg);
   color: var(--color-text);
-  font-family: var(--font-inter), 'Inter', system-ui, sans-serif;
+  font-family: var(--font-nunito), 'Caveat', cursive;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
 }
@@ -198,9 +198,9 @@ body {
   gap: 0.5rem;
   background: linear-gradient(135deg, #6366f1, #4f46e5);
   color: white;
-  font-family: var(--font-nunito), 'Nunito', sans-serif;
-  font-weight: 800;
-  font-size: 1.125rem;
+  font-family: var(--font-nunito), 'Caveat', cursive;
+  font-weight: 700;
+  font-size: 1.2rem;
   padding: 1rem 2.5rem;
   border-radius: 9999px;
   border: none;
@@ -287,9 +287,9 @@ body {
 }
 
 .section-title {
-  font-family: var(--font-nunito), 'Nunito', sans-serif;
-  font-weight: 800;
-  font-size: 2rem;
+  font-family: var(--font-nunito), 'Caveat', cursive;
+  font-weight: 700;
+  font-size: 2.2rem;
   text-align: center;
   color: var(--color-text);
   margin-bottom: 0.75rem;

@@ -88,7 +88,7 @@ function ModeCard({
       {/* Title */}
       <h3
         style={{
-          fontFamily: "var(--font-nunito), Nunito, sans-serif",
+          fontFamily: "var(--font-nunito), Caveat, cursive",
           fontWeight: 900,
           fontSize: "1.25rem",
           color: "#0f172a",
@@ -135,7 +135,7 @@ function ModeCard({
         style={{
           background: accent,
           color: "white",
-          fontFamily: "var(--font-nunito), Nunito, sans-serif",
+          fontFamily: "var(--font-nunito), Caveat, cursive",
           fontWeight: 800,
           fontSize: "1rem",
           padding: "0.85rem 1.5rem",
@@ -240,14 +240,14 @@ function StepCard({
           borderRadius: 9999,
           padding: "3px 14px",
           textTransform: "uppercase",
-          fontFamily: "var(--font-nunito), Nunito, sans-serif",
+          fontFamily: "var(--font-nunito), Caveat, cursive",
         }}
       >
         Step {num}
       </div>
       <h3
         style={{
-          fontFamily: "var(--font-nunito), Nunito, sans-serif",
+          fontFamily: "var(--font-nunito), Caveat, cursive",
           fontWeight: 800,
           fontSize: "1.05rem",
           color: "#0f172a",
@@ -335,7 +335,7 @@ export default function Home() {
             <span style={{ fontSize: "1.6rem" }}>🎨</span>
             <span
               style={{
-                fontFamily: "var(--font-nunito), Nunito, sans-serif",
+                fontFamily: "var(--font-nunito), Caveat, cursive",
                 fontWeight: 900,
                 fontSize: "1.3rem",
                 background: "linear-gradient(135deg, #6366f1, #22c55e)",
@@ -424,7 +424,7 @@ export default function Home() {
         <h1
           className="animate-fade-in-up delay-100"
           style={{
-            fontFamily: "var(--font-nunito), Nunito, sans-serif",
+            fontFamily: "var(--font-nunito), Caveat, cursive",
             fontWeight: 900,
             fontSize: "clamp(2.4rem, 6vw, 3.8rem)",
             lineHeight: 1.15,
@@ -528,7 +528,7 @@ export default function Home() {
               textTransform: "uppercase",
               marginBottom: "0.4rem",
               opacity: 0,
-              fontFamily: "var(--font-nunito), Nunito, sans-serif",
+              fontFamily: "var(--font-nunito), Caveat, cursive",
             }}
           >
             Pick your style
@@ -599,7 +599,7 @@ export default function Home() {
               textTransform: "uppercase",
               marginBottom: "0.4rem",
               opacity: 0,
-              fontFamily: "var(--font-nunito), Nunito, sans-serif",
+              fontFamily: "var(--font-nunito), Caveat, cursive",
             }}
           >
             Simple by design
@@ -661,7 +661,7 @@ export default function Home() {
           <h2
             className="animate-fade-in-up"
             style={{
-              fontFamily: "var(--font-nunito), Nunito, sans-serif",
+              fontFamily: "var(--font-nunito), Caveat, cursive",
               fontWeight: 900,
               fontSize: "clamp(1.6rem, 4vw, 2.2rem)",
               color: "white",
@@ -716,7 +716,7 @@ export default function Home() {
                 color: "white",
                 fontSize: "1.05rem",
                 fontWeight: 700,
-                fontFamily: "var(--font-nunito), Nunito, sans-serif",
+                fontFamily: "var(--font-nunito), Caveat, cursive",
                 letterSpacing: 2,
                 outline: "none",
                 textAlign: "center",
@@ -755,7 +755,7 @@ export default function Home() {
               style={{
                 background: "white",
                 color: "#6366f1",
-                fontFamily: "var(--font-nunito), Nunito, sans-serif",
+                fontFamily: "var(--font-nunito), Caveat, cursive",
                 fontWeight: 900,
                 fontSize: "1.05rem",
                 padding: "0.95rem 2.5rem",
@@ -811,7 +811,7 @@ export default function Home() {
             <span style={{ fontSize: "1.3rem" }}>🎨</span>
             <span
               style={{
-                fontFamily: "var(--font-nunito), Nunito, sans-serif",
+                fontFamily: "var(--font-nunito), Caveat, cursive",
                 fontWeight: 900,
                 fontSize: "1.05rem",
                 background: "linear-gradient(135deg, #a5b4fc, #6ee7b7)",
