@@ -2,8 +2,10 @@
 
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
+import Link from "next/link";
 
 // ─────────────────────────────────────────────────────────────────────────────
+
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -272,6 +274,7 @@ export default function Home() {
   const [guessLoading, setGuessLoading] = useState(false);
   const [roomCode, setRoomCode] = useState("");
   const [joinError, setJoinError] = useState("");
+  const [showMoreFun, setShowMoreFun] = useState(false);
   const gameModesRef = useRef<HTMLElement>(null);
 
   const handleScrollToModes = () => {
@@ -597,6 +600,38 @@ export default function Home() {
               loading={guessLoading}
             />
           </div>
+
+          <div style={{ marginTop: "4rem", display: "flex", justifyContent: "center" }}>
+            <button
+              onClick={() => setShowMoreFun(true)}
+              style={{
+                background: "linear-gradient(135deg, #f43f5e, #ec4899)",
+                color: "white",
+                fontFamily: "var(--font-nunito), Caveat, cursive",
+                fontWeight: 800,
+                fontSize: "1.2rem",
+                padding: "1rem 2.5rem",
+                borderRadius: "255px 15px 225px 15px / 15px 225px 15px 255px",
+                border: "3px solid #1a1a1a",
+                cursor: "pointer",
+                transition: "all 0.15s ease",
+                boxShadow: "4px 4px 0 #1a1a1a",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = "translateY(-4px) rotate(-2deg)";
+                e.currentTarget.style.boxShadow = "6px 6px 0 #1a1a1a";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "none";
+                e.currentTarget.style.boxShadow = "4px 4px 0 #1a1a1a";
+              }}
+            >
+              🎉 More Fun Games
+            </button>
+          </div>
         </div>
       </section>
 
@@ -854,6 +889,97 @@ export default function Home() {
           </p>
         </div>
       </footer>
+
+      {/* More Fun Modal */}
+      {showMoreFun && (
+        <div style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: "rgba(0,0,0,0.6)",
+          backdropFilter: "blur(4px)",
+          zIndex: 9999,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "1rem"
+        }}>
+          <div className="animate-fade-in-up" style={{
+            background: "#fff",
+            border: "4px solid #1a1a1a",
+            borderRadius: "16px",
+            padding: "2.5rem 2rem",
+            maxWidth: 420,
+            width: "100%",
+            textAlign: "center",
+            boxShadow: "10px 10px 0 rgba(0,0,0,0.3)",
+            position: "relative"
+          }}>
+            <button 
+              onClick={() => setShowMoreFun(false)}
+              style={{
+                position: "absolute",
+                top: 15,
+                right: 20,
+                background: "none",
+                border: "none",
+                fontSize: "1.5rem",
+                cursor: "pointer",
+                color: "#666",
+                padding: "4px",
+              }}
+            >
+              ✕
+            </button>
+            <h2 style={{
+              fontFamily: "var(--font-nunito), Caveat, cursive",
+              fontSize: "2.2rem",
+              fontWeight: 900,
+              color: "#1a1a1a",
+              marginBottom: "0.5rem"
+            }}>
+              More Games! 🎮
+            </h2>
+            <p style={{ color: "#525252", marginBottom: "2rem", lineHeight: 1.6, fontSize: "1.05rem" }}>
+              Try our brand new stealth action game mode! Hide, escape, and outsmart your friends.
+            </p>
+            <Link href="/police-thieves">
+              <button style={{
+                background: "#0f172a",
+                color: "#fbbf24",
+                fontFamily: "var(--font-nunito), Caveat, cursive",
+                fontWeight: 800,
+                fontSize: "1.3rem",
+                padding: "1.2rem 2rem",
+                borderRadius: "12px",
+                border: "4px solid #1a1a1a",
+                cursor: "pointer",
+                width: "100%",
+                transition: "transform 0.15s ease, box-shadow 0.15s ease",
+                boxShadow: "4px 4px 0 #1a1a1a",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "8px"
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = "translateY(-4px)";
+                e.currentTarget.style.boxShadow = "6px 6px 0 #1a1a1a";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "none";
+                e.currentTarget.style.boxShadow = "4px 4px 0 #1a1a1a";
+              }}
+              onClick={() => setShowMoreFun(false)}
+              >
+                🚓 Play Police vs Thieves 🕵️
+              </button>
+            </Link>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
